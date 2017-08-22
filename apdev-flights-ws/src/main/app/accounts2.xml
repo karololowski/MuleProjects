@@ -1,0 +1,382 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:smtp="http://www.mulesoft.org/schema/mule/smtp" xmlns:data-mapper="http://www.mulesoft.org/schema/mule/ee/data-mapper"
+	xmlns:ajax="http://www.mulesoft.org/schema/mule/ajax" xmlns:mulexml="http://www.mulesoft.org/schema/mule/xml" xmlns:db="http://www.mulesoft.org/schema/mule/db"
+	xmlns:batch="http://www.mulesoft.org/schema/mule/batch" xmlns:tracking="http://www.mulesoft.org/schema/mule/ee/tracking"
+	xmlns:file="http://www.mulesoft.org/schema/mule/file" xmlns:dw="http://www.mulesoft.org/schema/mule/ee/dw"
+	xmlns:metadata="http://www.mulesoft.org/schema/mule/metadata" xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns:sfdc="http://www.mulesoft.org/schema/mule/sfdc" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:spring="http://www.springframework.org/schema/beans" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
+http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/sfdc http://www.mulesoft.org/schema/mule/sfdc/current/mule-sfdc.xsd
+http://www.mulesoft.org/schema/mule/ee/dw http://www.mulesoft.org/schema/mule/ee/dw/current/dw.xsd
+http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd
+http://www.mulesoft.org/schema/mule/ee/tracking http://www.mulesoft.org/schema/mule/ee/tracking/current/mule-tracking-ee.xsd
+http://www.mulesoft.org/schema/mule/batch http://www.mulesoft.org/schema/mule/batch/current/mule-batch.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/xml http://www.mulesoft.org/schema/mule/xml/current/mule-xml.xsd
+http://www.mulesoft.org/schema/mule/ajax http://www.mulesoft.org/schema/mule/ajax/current/mule-ajax.xsd
+http://www.mulesoft.org/schema/mule/ee/data-mapper http://www.mulesoft.org/schema/mule/ee/data-mapper/current/mule-data-mapper.xsd
+http://www.mulesoft.org/schema/mule/smtp http://www.mulesoft.org/schema/mule/smtp/current/mule-smtp.xsd">
+	<smtp:gmail-connector name="Gmail" contentType="text/plain" fromAddress="karololowski@gmail.com"
+		replyToAddresses="karol.olowski@pl.pwc.com" subject="TEST" validateConnections="true" doc:name="Gmail" />
+
+	<flow name="SF_DEL">
+		<http:listener config-ref="HTTP_Listener_Configuration1" path="/delete" allowedMethods="GET" doc:name="HTTP" />
+		<sfdc:query config-ref="Salesforce__Basic_Authentication" query="dsql:SELECT Id FROM Account " doc:name="Copy_of_Salesforce"
+			doc:description="#[org.apache.commons.collections.IteratorUtils.toList(payload)]" />
+		<dw:transform-message doc:name="Copy_of_Transform Message">
+			<dw:input-payload doc:sample="sample_data\list_Account_1.dwl" />
+			<dw:set-payload><![CDATA[%dw 1.0
+%output application/java
+---
+payload map $]]></dw:set-payload>
+		</dw:transform-message>
+		<dw:transform-message doc:name="Transform Message">
+			<dw:set-payload><![CDATA[%dw 1.0
+%output application/java
+---
+payload.Id]]></dw:set-payload>
+		</dw:transform-message>
+		<foreach batchSize="100" doc:name="For Each">
+			<sfdc:delete config-ref="Salesforce__Basic_Authentication" doc:name="Salesforce">
+				<sfdc:ids ref="#[payload]" />
+			</sfdc:delete>
+			<logger message="#[payload]" level="INFO" doc:name="Logger" />
+		</foreach>
+		<set-payload value="#[payload]" doc:name="Set Payload" />
+	</flow>
+
+	<flow name="accounts2Flow" initialState="stopped" processingStrategy="synchronous">
+		<poll doc:name="Poll">
+			<fixed-frequency-scheduler frequency="60" timeUnit="SECONDS" />
+			<watermark variable="lastAccountID" default-expression="0" selector="MAX" selector-expression="#[payload.accountID]" />
+			<db:select config-ref="MySQL_Configuration" doc:name="Database">
+				<db:parameterized-query><![CDATA[SELECT 
+REPLACE(accountID,"'",".") AS 'accountID',
+REPLACE(name,"'",".") AS 'name',
+REPLACE(street,"'",".") AS 'street',
+REPLACE(city,"'",".") AS 'city',
+REPLACE(state,"'",".") AS 'state',
+REPLACE(country,"'",".") AS 'country',
+REPLACE(postal,"'",".") AS 'postal'
+FROM accounts
+WHERE  accountID <>'3758';]]></db:parameterized-query>
+			</db:select>
+		</poll>
+		<foreach batchSize="50" doc:name="For Each on accounts">
+			<dw:transform-message doc:name="Transform Message">
+				<dw:set-payload><![CDATA[%dw 1.0
+%output application/java
+---
+payload map ((payload01 , indexOfPayload01) -> {
+	Name: payload01.name,
+	BillingStreet: payload01.street,
+	BillingCity: payload01.city,
+	BillingState: payload01.state,
+	BillingPostalCode: payload01.postal,
+	BillingCountry: payload01.country
+})]]></dw:set-payload>
+				<dw:set-variable variableName="records"><![CDATA[%dw 1.0
+%output application/java
+---
+payload map ((payload01 , indexOfPayload01) -> {
+	Name: payload01.name,
+	BillingStreet: payload01.street,
+	BillingCity: payload01.city,
+	BillingState: payload01.state,
+	BillingPostalCode: payload01.postal,
+	BillingCountry: payload01.country
+})]]></dw:set-variable>
+			</dw:transform-message>
+			<logger message="#[payload]" level="INFO" doc:name="Logger" />
+			<sfdc:create config-ref="Salesforce__Basic_Authentication" type="Account" doc:name="Salesforce_create">
+				<sfdc:objects ref="#[payload]" />
+			</sfdc:create>
+			<dw:transform-message doc:name="Transform Message">
+				<dw:set-variable variableName="sf_create_results"><![CDATA[%dw 1.0
+%output application/java
+---
+payload]]></dw:set-variable>
+			</dw:transform-message>
+			<logger level="INFO" doc:name="Logger" message="#[payload[1].getId()]" />
+			<set-payload value="#[flowVars.records]" doc:name="Set Payload" />
+			<sfdc:query config-ref="Salesforce__Basic_Authentication" query="dsql:SELECT Id FROM Account " doc:name="Salesforce"
+				doc:description="#[org.apache.commons.collections.IteratorUtils.toList(payload)]" />
+			<dw:transform-message doc:name="Transform Message">
+				<dw:input-payload doc:sample="sample_data\list_Account_1.dwl" />
+				<dw:set-payload><![CDATA[%dw 1.0
+%output application/java
+---
+payload map $]]></dw:set-payload>
+			</dw:transform-message>
+			<scatter-gather doc:name="Scatter-Gather">
+				<processor-chain>
+					<dw:transform-message doc:name="Transform Message" metadata:id="cd84107c-8835-4be6-8fda-c796e3da18b0">
+						<dw:input-payload doc:sample="sample_data\list_Account.dwl" />
+						<dw:set-payload><![CDATA[%dw 1.0
+%output application/json
+---
+{
+	Konta: {
+		Klient: {
+		
+			Id: payload.Id
+		}
+	}
+}
+]]></dw:set-payload>
+					</dw:transform-message>
+					<file:outbound-endpoint path="C:\Users\kolowski001\Desktop\karolw" outputPattern="SF_error.json"
+						responseTimeout="10000" doc:name="JSON" />
+				</processor-chain>
+				<processor-chain>
+					<dw:transform-message doc:name="Transform Message" metadata:id="0dfab1a0-794f-45f3-91e0-40a17f569e1a">
+						<dw:input-payload doc:sample="sample_data\list_SaveResult.dwl" />
+						<dw:set-payload><![CDATA[%dw 1.0
+%output application/xml
+---
+{
+	Konta: {
+		(payload map ((payload01 , indexOfPayload01) -> {
+			Klient: {
+				nr: indexOfPayload01,
+				Id: payload01.Id,
+				Type: typeOf payload01.Id,
+				Size: sizeOf payload01.Id
+			}
+		}))
+	}
+}]]></dw:set-payload>
+					</dw:transform-message>
+					<file:outbound-endpoint path="C:\Users\kolowski001\Desktop\karolw" outputPattern="SF_error.xml"
+						responseTimeout="10000" doc:name="xml" />
+				</processor-chain>
+				<flow-ref name="SF_DEL" doc:name="Flow Reference" />
+			</scatter-gather>
+			<logger level="INFO" doc:name="Logger" />
+		</foreach>
+		<logger message="#[payload]" level="INFO" doc:name="Logger" />
+	</flow>
+	<flow name="accounts2Flow1" initialState="stopped">
+		<file:inbound-endpoint path="C:\Users\kolowski001\Desktop\karol" responseTimeout="10000"
+			doc:name="File" moveToDirectory="C:\Users\kolowski001\Desktop\karolw">
+			<file:filename-regex-filter pattern="ORDER.xml" caseSensitive="false" />
+		</file:inbound-endpoint>
+		<logger message="#[payload]" level="INFO" doc:name="Logger" />
+		<dw:transform-message doc:name="Transform Message" metadata:id="a1bb71a2-df77-4e2d-9781-f7fd06ee01de">
+			<dw:input-payload doc:sample="C:\Users\kolowski001\Desktop\karol\ORDER.xml" />
+			<dw:set-payload><![CDATA[%dw 1.0
+%output application/xml
+%namespace ns0 http://www.adventure-works.com
+---
+payload]]></dw:set-payload>
+		</dw:transform-message>
+		<logger message="#[payload]" level="INFO" doc:name="Logger" />
+
+		<mulexml:xslt-transformer name="xslt" doc:name="XSLT">
+			<mulexml:xslt-text>
+				<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:xs="http://www.w3.org/2001/XMLSchema"
+					xmlns:fn="http://www.w3.org/2005/xpath-functions">
+					<xsl:output method="xml" />
+
+					<xsl:template match="/">
+						<Orders>
+							<xsl:call-template name="repeatable" />
+						</Orders>
+					</xsl:template>
+
+					<xsl:template name="repeatable">
+						<xsl:param name="index" select="1" />
+						<xsl:param name="total" select="10" />
+						<!-- repeatable code -->
+						<xsl:for-each select="catalog/cd">
+							<Order>
+								<xsl:attribute name="position">
+                                <xsl:value-of select="concat(position(),current()/country)" />
+                            </xsl:attribute>
+								<tytyl>
+									<xsl:attribute name="position"><xsl:value-of select="string-length(current()/title)" /></xsl:attribute>
+									<xsl:value-of select="current()/title" />
+								</tytyl>
+								<artysta>
+									<xsl:attribute name="length"><xsl:value-of select="string-length(current()/artist)" /></xsl:attribute>
+									<xsl:value-of select="current()/artist" />
+								</artysta>
+								<kraj>
+									<xsl:value-of select="current()/country" />
+								</kraj>
+								<firma>
+									<xsl:value-of select="current()/company" />
+								</firma>
+								<cena>
+									<xsl:value-of select="current()/price" />
+								</cena>
+								<rok>
+									<xsl:value-of select="current()/year" />
+								</rok>
+								<data>
+									<xsl:value-of select="current-dateTime()" />
+								</data>
+							</Order>
+						</xsl:for-each>
+
+						<xsl:if test="not($index = $total)">
+							<xsl:call-template name="repeatable">
+								<xsl:with-param name="index" select="$index + 1" />
+							</xsl:call-template>
+						</xsl:if>
+					</xsl:template>
+				</xsl:stylesheet>
+			</mulexml:xslt-text>
+
+		</mulexml:xslt-transformer>
+		<byte-array-to-string-transformer doc:name="Byte Array to String" />
+		<logger level="INFO" doc:name="Logger" message="#[payload]" />
+		<file:outbound-endpoint path="C:\Users\kolowski001\Desktop\karol" outputPattern="RESULTS_short.xml"
+			responseTimeout="10000" doc:name="File" />
+	</flow>
+	<batch:job name="Copy_of_accountsBatch" max-failed-records="-1">
+		<batch:input>
+			<poll doc:name="Copy_of_Poll">
+				<fixed-frequency-scheduler frequency="20" timeUnit="SECONDS" />
+				<watermark variable="lastAccountID" default-expression="0" selector="MAX" selector-expression="#[payload.accountID]" />
+				<db:select config-ref="MySQL_Configuration" doc:name="Database">
+					<db:parameterized-query><![CDATA[SELECT 
+REPLACE(accountID,"'",".") AS 'accountID',
+REPLACE(name,"'",".") AS 'name',
+REPLACE(street,"'",".") AS 'street',
+REPLACE(city,"'",".") AS 'city',
+REPLACE(state,"'",".") AS 'state',
+REPLACE(country,"'",".") AS 'country',
+REPLACE(postal,"'",".") AS 'postal'
+FROM accounts
+WHERE  accountID <>'3758' and accountID > #[flowVars.lastAccountID] ORDER BY accountID asc LIMIT 5]]></db:parameterized-query>
+				</db:select>
+			</poll>
+			<dw:transform-message doc:name="Transform Message">
+				<dw:set-payload><![CDATA[%dw 1.0
+%output application/java
+---
+payload map ((payload01 , indexOfPayload01) -> {
+	Name: payload01.name,
+	BillingStreet: payload01.street,
+	BillingCity: payload01.city,
+	BillingState: payload01.state,
+	BillingPostalCode: payload01.postal,
+	BillingCountry: payload01.country
+})]]></dw:set-payload>
+			</dw:transform-message>
+		</batch:input>
+		<batch:process-records>
+			<batch:step name="Batch_Step3">
+				<enricher doc:name="Message Enricher">
+					<sfdc:query config-ref="Salesforce__Basic_Authentication"
+						query="dsql:SELECT Id,Name FROM Account WHERE (Name = '#[payload.Name]' AND BillingStreet = '#[payload.BillingStreet]')"
+						doc:name="Copy_of_Salesforce" />
+					<enrich source="#[org.apache.commons.collections.IteratorUtils.toList(payload)]" target="#[recordVars.exist2]" />
+					<enrich source="#[payload.size() &gt;0]" target="#[recordVars.exist]" />
+				</enricher>
+			</batch:step>
+			<batch:step name="Copy_of_Batch_Step2" accept-expression="#[recordVars.exist == false]">
+				<batch:commit size="10" doc:name="Copy_of_Batch Commit">
+					<sfdc:create config-ref="Salesforce__Basic_Authentication" type="Account" doc:name="Copy_of_Salesforce">
+						<sfdc:objects ref="#[payload]" />
+					</sfdc:create>
+				</batch:commit>
+			</batch:step>
+			<batch:step name="Batch_Step" accept-expression="#[recordVars.exist == true]">
+				<dw:transform-message doc:name="Transform Message">
+					<dw:set-payload><![CDATA[%dw 1.0
+%output application/java
+---
+[{
+	Id: recordVars.exist2[0].Id,
+	BillingStreet: payload.BillingStreet,
+	BillingCity: payload.BillingCity,
+	BillingState: payload.BillingState,
+	BillingPostalCode: payload.BillingPostalCode,
+	BillingCountry: payload.BillingCountry
+}]]]></dw:set-payload>
+				</dw:transform-message>
+				<dw:transform-message doc:name="Transform Message" metadata:id="4ea7739e-fac3-41d3-8a84-3db3938623f5">
+					<dw:input-payload doc:sample="sample_data\Account.dwl" mimeType="application/java" />
+					<dw:set-payload><![CDATA[%dw 1.0
+%output application/xml
+---
+karol:{(payload map {
+	Id: $.Id,
+	BillingStreet: $.BillingStreet,
+	BillingCity: $.BillingCity,
+	BillingState: $.BillingState,
+	BillingPostalCode: $.BillingPostalCode,
+	BillingCountry: $.BillingCountry
+	
+})
+}]]></dw:set-payload>
+				</dw:transform-message>
+				<mulexml:xslt-transformer maxIdleTransformers="2" maxActiveTransformers="5" doc:name="XSLT">
+					<mulexml:xslt-text>
+						<xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:xs="http://www.w3.org/2001/XMLSchema"
+							xmlns:fn="http://www.w3.org/2005/xpath-functions">
+							<xsl:output method="xml"/>
+							<xsl:template match="/">
+								<Accounts>
+									<xsl:call-template name="repeatable" />
+								</Accounts>
+							</xsl:template>
+							<xsl:template name="repeatable">
+								<xsl:param name="index" select="1" />
+								<xsl:param name="total" select="10" />
+								<!-- Repeatable text -->
+								<xsl:for-each select="/karol">
+									<Id>
+										<xsl:value-of select="current()/Id" />
+									</Id>
+									<kraj>
+										<xsl:value-of select="current()/BillingCountry" />
+									</kraj>
+									<Stan>
+										<xsl:value-of select="current()/BillingState" />
+									</Stan>
+									<kod>
+										<xsl:value-of select="current()/BillingPostalCode" />
+									</kod>
+									<miasto>
+										<xsl:value-of select="current()/BillingCity" />
+									</miasto>
+									<ulica>
+										<xsl:value-of select="current()/BillingStreet" />
+									</ulica>
+									<data>
+										<xsl:value-of select="current-dateTime()" />
+									</data>
+								</xsl:for-each>
+								<xsl:if test="not($index = $total)">
+									<xsl:call-template name="repeatable">
+										<xsl:with-param name="index" select="$index + 1" />
+									</xsl:call-template>
+								</xsl:if>
+							</xsl:template>
+						</xsl:stylesheet>
+					</mulexml:xslt-text>
+				</mulexml:xslt-transformer>
+                <logger level="INFO" doc:name="Logger"/>
+
+				<byte-array-to-string-transformer doc:name="Byte Array to String" />
+
+				<logger level="INFO" doc:name="Logger" />
+				<sfdc:update config-ref="Salesforce__Basic_Authentication" type="Account" doc:name="Salesforce">
+					<sfdc:objects ref="#[payload]" />
+				</sfdc:update>
+			</batch:step>
+		</batch:process-records>
+		<batch:on-complete>
+			<logger message="#['\n\nProcessed: ' + payload.processedRecords + ' Failed: ' + payload.failedRecords]" level="INFO"
+				doc:name="Copy_of_Logger" />
+		</batch:on-complete>
+	</batch:job>
+
+</mule>
