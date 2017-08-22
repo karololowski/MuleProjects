@@ -1,0 +1,11 @@
+{
+    "inputMessageMetadata": {
+        "messagePayload": {
+            "connectorName": "CSV_To_Map",
+            "typeId": "accounts"
+        }
+    },
+    "outputMessageMetadata": {},
+    "id": "78c86ebb-cd7a-4cf9-a08a-f4a27c0940a4",
+    "version": "5.2.0.0"
+}

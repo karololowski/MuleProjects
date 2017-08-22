@@ -1,0 +1,11 @@
+{
+    "inputMessageMetadata": {},
+    "outputMessageMetadata": {
+        "messagePayload": {
+            "connectorName": "List_Map__To_List_Account__1List_Map__To_List_Account__2",
+            "typeId": "Account"
+        }
+    },
+    "id": "f89c4c96-d017-4ec6-9118-6af41a378229",
+    "version": "5.2.0.0"
+}

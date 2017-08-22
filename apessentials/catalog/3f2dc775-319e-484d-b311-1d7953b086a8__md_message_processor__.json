@@ -1,0 +1,16 @@
+{
+    "inputMessageMetadata": {},
+    "outputMessageMetadata": {
+        "messagePayload": {
+            "model": {},
+            "isArray": false,
+            "implementationClass": "java.util.Collection",
+            "dataType": "LIST",
+            "metaDataModelPropertiesManager": {
+                "properties": []
+            }
+        }
+    },
+    "id": "3f2dc775-319e-484d-b311-1d7953b086a8",
+    "version": "5.2.0.0"
+}

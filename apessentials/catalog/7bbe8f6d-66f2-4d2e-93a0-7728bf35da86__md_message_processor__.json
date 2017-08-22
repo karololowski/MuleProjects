@@ -1,0 +1,16 @@
+{
+    "inputMessageMetadata": {
+        "messagePayload": {
+            "connectorName": "CSV_To_Map",
+            "typeId": "accounts"
+        }
+    },
+    "outputMessageMetadata": {
+        "messagePayload": {
+            "connectorName": "#_custom_mule_metadata_type_#",
+            "typeId": "accounts"
+        }
+    },
+    "id": "7bbe8f6d-66f2-4d2e-93a0-7728bf35da86",
+    "version": "5.2.0.0"
+}
