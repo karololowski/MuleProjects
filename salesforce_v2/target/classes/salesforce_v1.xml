@@ -81,12 +81,14 @@ payload]]></dw:set-payload>
 ---
 payload]]></dw:set-payload>
             </dw:transform-message>
+            <logger level="INFO" doc:name="Logger"/>
             <set-variable variableName="size" value="#[payload.size]" doc:name="Variable"/>
         </batch:input>
         <batch:process-records>
             <batch:step name="Batch_Step">
                 <batch:set-record-variable variableName="fname" value="#[payload.Name]" doc:name="fname"/>
                 <batch:set-record-variable variableName="rname" value="#[payload.Name]" doc:name="rname"/>
+                <logger level="INFO" doc:name="Logger"/>
                 <logger message="#[recordVars.rname]" level="INFO" doc:name="Logger"/>
             </batch:step>
             <batch:step name="Batch_Step1">
