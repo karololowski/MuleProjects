@@ -372,6 +372,10 @@ karol:{(payload map {
 					<sfdc:objects ref="#[payload]" />
 				</sfdc:update>
 			</batch:step>
+            <batch:step name="Batch_Step1">
+                <ajax:outbound-endpoint channel="" responseTimeout="10000" doc:name="Ajax"/>
+                <logger level="INFO" doc:name="Logger"/>
+            </batch:step>
 		</batch:process-records>
 		<batch:on-complete>
 			<logger message="#['\n\nProcessed: ' + payload.processedRecords + ' Failed: ' + payload.failedRecords]" level="INFO"
