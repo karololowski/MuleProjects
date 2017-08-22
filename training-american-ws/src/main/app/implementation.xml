@@ -34,6 +34,7 @@ payload map ((payload01 , indexOfPayload01) -> {
 	}
 })]]></dw:set-payload>
         </dw:transform-message>
+        <logger level="INFO" doc:name="Logger"/>
     </flow>
     <flow name="getFlightsByIDFlow">
         <db:select config-ref="MySQL_Configuration" doc:name="Database">
@@ -58,9 +59,11 @@ payload map ((payload01 , indexOfPayload01) -> {
 	}
 })]]></dw:set-payload>
         </dw:transform-message>
+        <logger level="INFO" doc:name="Logger"/>
     </flow>
     <flow name="postFlightFlow">
         <http:listener config-ref="american-flights-api-httpListenerConfig" path="/flights" allowedMethods="POST" doc:name="HTTP"/>
         <set-payload value="#['Flight added (but not really)']" doc:name="Set Payload"/>
+        <logger level="INFO" doc:name="Logger"/>
     </flow>
 </mule>
