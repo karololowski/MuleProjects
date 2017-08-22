@@ -376,6 +376,7 @@ karol:{(payload map {
 		<batch:on-complete>
 			<logger message="#['\n\nProcessed: ' + payload.processedRecords + ' Failed: ' + payload.failedRecords]" level="INFO"
 				doc:name="Copy_of_Logger" />
+            <logger level="INFO" doc:name="Logger"/>
 		</batch:on-complete>
 	</batch:job>
 

@@ -97,7 +97,9 @@ payload]]></dw:set-payload>
 			</mulexml:xslt-text>
 
 		</mulexml:xslt-transformer>
+        <logger level="INFO" doc:name="Logger"/>
 		<byte-array-to-string-transformer doc:name="Byte Array to String" />
+        <logger level="INFO" doc:name="Logger"/>
 		<file:outbound-endpoint path="C:\Users\kolowski001\Desktop\karol" outputPattern="RESULTS_small.xml"
 			responseTimeout="10000" doc:name="File" />
 	</flow>
@@ -114,8 +116,10 @@ payload]]></dw:set-payload>
 payload]]></dw:set-payload>
         </dw:transform-message>
         <logger message="#[payload]" level="INFO" doc:name="Copy_of_Logger"/>
+        <logger level="INFO" doc:name="Logger"/>
         <foreach doc:name="For Each">
             <logger message="#[payload]" level="INFO" doc:name="Logger"/>
+            <logger level="INFO" doc:name="Logger"/>
         </foreach>
     </flow>
 </mule>

@@ -90,6 +90,8 @@ payload]]></dw:set-payload>
                 <batch:set-record-variable variableName="rname" value="#[payload.Name]" doc:name="rname"/>
                 <logger level="INFO" doc:name="Logger"/>
                 <logger message="#[recordVars.rname]" level="INFO" doc:name="Logger"/>
+                <logger level="INFO" doc:name="Logger"/>
+                <logger level="INFO" doc:name="Logger"/>
             </batch:step>
             <batch:step name="Batch_Step1">
                 <logger message="#[recordVars.rname]" level="INFO" doc:name="Logger"/>
